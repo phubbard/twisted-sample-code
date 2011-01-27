@@ -8,6 +8,8 @@
 @see http://ifiddling.blogspot.com/2009/01/dummy2.html
 @see http://unimotion.sourceforge.net/
 @see http://twistedmatrix.com/documents/current/core/howto/clients.html
+
+@note Run 'nc -l 9997' in another window to provide a TCP server and display.
 '''
 
 from twisted.internet import reactor, protocol
@@ -15,8 +17,12 @@ from twisted.internet.endpoints import TCP4ClientEndpoint
 
 import logging as log
 
+# Where we'll stream the data
 DEST_ADDR = 'localhost'
 DEST_PORT = 9997
+
+# Update rate, milliseconds. 100 = 10Hz
+UPDATE_DELAY_MSEC = 100
 
 class Sender(protocol.Protocol):
     def sendMessage(self, msg):
@@ -32,7 +38,7 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
         p.sendMessage(self.data)
 
     def noProtocol(self, failure):
-        log.critical('Error getting outbound TCP connection: %s' % str(failure))
+        log.error('Error getting outbound TCP connection: %s' % str(failure))
 
     def connectionMade(self):
         self.data = []
@@ -58,5 +64,5 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
 if __name__ == '__main__':
     log.basicConfig(level=log.DEBUG, format='%(asctime)s %(levelname)s [%(funcName)s] %(message)s')
     mp = MotionProcessProtocol()
-    reactor.spawnProcess(mp, 'motion', ['-f', '100'])
+    reactor.spawnProcess(mp, 'motion', ['-f', str(UPDATE_DELAY_MSEC)])
     reactor.run()
