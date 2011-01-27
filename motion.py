@@ -25,6 +25,9 @@ DEST_PORT = 9997
 UPDATE_DELAY_MSEC = 100
 
 class Sender(protocol.Protocol):
+    """
+    This handles sending the data to the TCP server.
+    """
     def sendMessage(self, msg):
         if len(msg) != 3:
             return
@@ -33,14 +36,23 @@ class Sender(protocol.Protocol):
 
 class MotionProcessProtocol(protocol.ProcessProtocol):
     def gotProtocol(self, p):
+        """
+        Callback from TCP4 endpoint. Saves the protocol instance for later.
+        """
         self.p = p
         log.debug('got protocol')
-        p.sendMessage(self.data)
 
     def noProtocol(self, failure):
+        """
+        Errback from TCP4 endpoint, called if we get a connection error.
+        """
         log.error('Error getting outbound TCP connection: %s' % str(failure))
 
     def connectionMade(self):
+        """
+        Callback for connecting to the spawned 'motion' process. Starts
+        a connection to the TCP server to send the data out.
+        """
         self.data = []
         log.debug('Connected, opening outbound connection')
         factory = protocol.Factory()
@@ -51,6 +63,10 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
         d.addErrback(self.noProtocol)
 
     def outReceived(self, data):
+        """
+        This is called when the motion app prints out data. Format is 3 floats, string
+        format, with a space inbetween. easy to parse.
+        """
         log.info('got "%s"' % data.strip())
 
         data = map(float, data.strip().split())
@@ -58,6 +74,7 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
             log.debug('Only got %d values, skipping' % len(data))
             return
 
+        # If we have a connection, send the data on
         if hasattr(self, 'p'):
             self.p.sendMessage(data)
 
