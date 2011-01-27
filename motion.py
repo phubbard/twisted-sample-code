@@ -22,12 +22,15 @@ DEST_ADDR = 'localhost'
 DEST_PORT = 9997
 
 # Update rate, milliseconds. 100 = 10Hz
-UPDATE_DELAY_MSEC = 100
+UPDATE_DELAY_MSEC = 1000
 
 class Sender(protocol.Protocol):
     """
     This handles sending the data to the TCP server.
     """
+    def sendRawMessage(self, msg):
+        self.transport.write(msg)
+
     def sendMessage(self, msg):
         if len(msg) != 3:
             return
@@ -47,13 +50,9 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
         Errback from TCP4 endpoint, called if we get a connection error.
         """
         log.error('Error getting outbound TCP connection: %s' % str(failure))
+        del self.p
 
-    def connectionMade(self):
-        """
-        Callback for connecting to the spawned 'motion' process. Starts
-        a connection to the TCP server to send the data out.
-        """
-        self.data = []
+    def open_outbound(self):
         log.debug('Connected, opening outbound connection')
         factory = protocol.Factory()
         factory.protocol = Sender
@@ -61,6 +60,14 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
         d = point.connect(factory)
         d.addCallback(self.gotProtocol)
         d.addErrback(self.noProtocol)
+
+    def connectionMade(self):
+        """
+        Callback for connecting to the spawned 'motion' process. Starts
+        a connection to the TCP server to send the data out.
+        """
+        self.data = []
+        self.open_outbound()
 
     def outReceived(self, data):
         """
@@ -77,6 +84,8 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
         # If we have a connection, send the data on
         if hasattr(self, 'p'):
             self.p.sendMessage(data)
+        else:
+            self.open_outbound()
 
 if __name__ == '__main__':
     log.basicConfig(level=log.DEBUG, format='%(asctime)s %(levelname)s [%(funcName)s] %(message)s')
