@@ -58,7 +58,7 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
 
         @param motion tupple of force values (x,y,z)
         """
-        log.info('got "%s"' % data.strip())
+        log.info('got "%s"' % str(motion))
 
 
 class TCPProducingClient(MotionProcessProtocol):
