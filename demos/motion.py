@@ -38,6 +38,45 @@ class Sender(protocol.Protocol):
         self.transport.write(outbound_msg)
 
 class MotionProcessProtocol(protocol.ProcessProtocol):
+    """A Python wrapper (twisted protocol) around the monitor program.
+    """
+
+    def outReceived(self, data):
+        """
+        This is called when the motion app prints out data. Format is 3 floats, string
+        format, with a space inbetween. easy to parse.
+        """
+        motion = map(float, data.strip().split())
+        if len(motion) != 3:
+            log.debug('Only got %d values, skipping' % len(motion))
+            return
+        self.motionReceived(motion)
+
+    def motionReceived(self, motion): 
+        """
+        Implement this event handler in your application.
+
+        @param motion tupple of force values (x,y,z)
+        """
+        log.info('got "%s"' % data.strip())
+
+
+class TCPProducingClient(MotionProcessProtocol):
+
+    def connectionMade(self):
+        """
+        Callback for connecting to the spawned 'motion' process. Starts
+        a connection to the TCP server to send the data out.
+        """
+        self.open_outbound()
+
+    def motionReceived(self, motion):
+        # If we have a connection, send the data on
+        if hasattr(self, 'p'):
+            self.p.sendMessage(motion)
+        else:
+            self.open_outbound()
+
     def gotProtocol(self, p):
         """
         Callback from TCP4 endpoint. Saves the protocol instance for later.
@@ -61,34 +100,16 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
         d.addCallback(self.gotProtocol)
         d.addErrback(self.noProtocol)
 
-    def connectionMade(self):
-        """
-        Callback for connecting to the spawned 'motion' process. Starts
-        a connection to the TCP server to send the data out.
-        """
-        self.data = []
-        self.open_outbound()
 
-    def outReceived(self, data):
-        """
-        This is called when the motion app prints out data. Format is 3 floats, string
-        format, with a space inbetween. easy to parse.
-        """
-        log.info('got "%s"' % data.strip())
+def spawnProcess(reactor, processProtocol):
+    return reactor.spawnProcess(processProtocol, 
+                                'motion', 
+                                ['-f', str(UPDATE_DELAY_MSEC)]
+                                )
 
-        data = map(float, data.strip().split())
-        if len(data) != 3:
-            log.debug('Only got %d values, skipping' % len(data))
-            return
-
-        # If we have a connection, send the data on
-        if hasattr(self, 'p'):
-            self.p.sendMessage(data)
-        else:
-            self.open_outbound()
 
 if __name__ == '__main__':
     log.basicConfig(level=log.DEBUG, format='%(asctime)s %(levelname)s [%(funcName)s] %(message)s')
     mp = MotionProcessProtocol()
-    reactor.spawnProcess(mp, 'motion', ['-f', str(UPDATE_DELAY_MSEC)])
+    spawnProcess(reactor, mp)
     reactor.run()
