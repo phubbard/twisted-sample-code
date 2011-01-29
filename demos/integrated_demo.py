@@ -99,7 +99,7 @@ def demo1():
     The arduino device has a temperature sensor, a humidity sensor, and a
     controllable multi-color LED
 
-    The arduino.Device as these api methods:
+    The arduino.Device has these api methods:
      * set_color - this controls the LED light
      * get_data - this fetches a sample from the sensors
 
@@ -130,14 +130,17 @@ def demo1():
         print "Errback for %s: " % (fun_name,)
         print reason
 
+    # api call example 1
     d1 = device.get_data()
     d1.addCallback(print_cb, 'get_data')
     d1.addErrback(print_eb, 'get_data')
 
+    # api call example 2
     d2 = device.set_color('aaa') # white
     d2.addCallback(print_cb, 'set_color')
     d2.addErrback(print_eb, 'set_color')
 
+    # api call example 3
     d3 = device.set_color('aaZ') # blue
     d3.addCallback(print_cb, 'set_color')
     d3.addErrback(print_eb, 'set_color')
@@ -181,6 +184,11 @@ def demo4():
     The x, y, and z components of the accelerometer data are mapped to the
     r, g, and b components of the LED on the arduino device. The result is
     the ability to change the LED color by moving your laptop around.
+
+    The MotionToLight extends the MotionProcessProtocol. The motionReceived
+    event handler calls the set_color method of the arduino device every
+    time it gets a new accelerometer sample.
+
     """
     device = arduino.Device()
     motionProcess = MotionToLight(device)
