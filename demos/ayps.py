@@ -197,9 +197,6 @@ class ConsoleManhole(manhole.Manhole):
             # about seeing a list when expecting a string. Can't figure out how to reproduce
             # it consistently, but it deals with exiting the shell just after an error in the
             # REPL. In any case, don't worry about it, and don't clobber history.
-            # ----
-            # No need to join historyLines with the file.writelines method
-            # - Dorian 02-05-2011
             pass
 
         self.factory.shellQuit()
