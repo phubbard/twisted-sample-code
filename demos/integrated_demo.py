@@ -194,4 +194,4 @@ def demo4():
     """
     device = arduino.Device()
     motionProcess = MotionToLight(device)
-    motion.spawnProcess(reactor, motionProcess)
+    motion.spawnProcess(reactor, motionProcess, 250)
