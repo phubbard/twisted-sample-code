@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 A Twisted service
 A simple api to change the color of a light

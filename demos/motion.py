@@ -22,14 +22,16 @@ DEST_ADDR = 'localhost'
 DEST_PORT = 9997
 
 # Update rate, milliseconds. 100 = 10Hz
-UPDATE_DELAY_MSEC = 1000
+UPDATE_DELAY_MSEC = 50
 
 class Sender(protocol.Protocol):
     """
     This handles sending the data to the TCP server.
     """
     def sendRawMessage(self, msg):
+
         self.transport.write(msg)
+        self.transport.write('\n')
 
     def sendMessage(self, msg):
         if len(msg) != 3:
@@ -77,6 +79,9 @@ class TCPProducingClient(MotionProcessProtocol):
         else:
             self.open_outbound()
 
+        log.debug('got "%s"' % str(motion))
+
+
     def gotProtocol(self, p):
         """
         Callback from TCP4 endpoint. Saves the protocol instance for later.
@@ -88,8 +93,7 @@ class TCPProducingClient(MotionProcessProtocol):
         """
         Errback from TCP4 endpoint, called if we get a connection error.
         """
-        log.error('Error getting outbound TCP connection: %s' % str(failure))
-        del self.p
+        log.debug('Error getting outbound TCP connection: %s' % str(failure))
 
     def open_outbound(self):
         log.debug('Connected, opening outbound connection')
@@ -109,7 +113,7 @@ def spawnProcess(reactor, processProtocol):
 
 
 if __name__ == '__main__':
-    log.basicConfig(level=log.DEBUG, format='%(asctime)s %(levelname)s [%(funcName)s] %(message)s')
-    mp = MotionProcessProtocol()
+    log.basicConfig(level=log.INFO, format='%(asctime)s %(levelname)s [%(funcName)s] %(message)s')
+    mp = TCPProducingClient()
     spawnProcess(reactor, mp)
     reactor.run()

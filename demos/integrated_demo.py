@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 """
 Collection of demonstrations using the arduino and motion modules.
 
