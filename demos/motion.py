@@ -14,22 +14,27 @@
 
 from twisted.internet import reactor, protocol
 from twisted.internet.endpoints import TCP4ClientEndpoint
+from twisted.python import usage
 
 import logging as log
+import sys
 
-# Where we'll stream the data
-DEST_ADDR = 'localhost'
-DEST_PORT = 9997
-
-# Update rate, milliseconds. 100 = 10Hz
-UPDATE_DELAY_MSEC = 1000
+# Command line flags and associated default values
+class MOptions(usage.Options):
+    optParameters = [
+    ['port', 'p', 9997, 'Destination TCP port for data stream'],
+    ['host', 'h', 'localhost', 'Destination hostname or IP'],
+    ['interval', 'i', 100, 'Polling interval, milliseconds'],
+    ]
 
 class Sender(protocol.Protocol):
     """
     This handles sending the data to the TCP server.
     """
     def sendRawMessage(self, msg):
+
         self.transport.write(msg)
+        self.transport.write('\n')
 
     def sendMessage(self, msg):
         if len(msg) != 3:
@@ -38,7 +43,8 @@ class Sender(protocol.Protocol):
         self.transport.write(outbound_msg)
 
 class MotionProcessProtocol(protocol.ProcessProtocol):
-    """A Python wrapper (twisted protocol) around the monitor program.
+    """
+    A Python wrapper (twisted protocol) around the monitor program.
     """
 
     def outReceived(self, data):
@@ -62,6 +68,18 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
 
 
 class TCPProducingClient(MotionProcessProtocol):
+    """
+    This subclass of MPP adds hooks to repeatedly try and open an outbound (client)
+    TCP connection where we'll stream the data. Try
+
+    nc -l 9997
+
+    or, if you have LabVIEW, the 'LV Client.vi' for a live data viewer.
+    """
+
+    def __init__(self, hostname, portnum):
+        self.hostname = hostname
+        self.portnum = portnum
 
     def connectionMade(self):
         """
@@ -77,6 +95,9 @@ class TCPProducingClient(MotionProcessProtocol):
         else:
             self.open_outbound()
 
+        log.debug('got "%s"' % str(motion))
+
+
     def gotProtocol(self, p):
         """
         Callback from TCP4 endpoint. Saves the protocol instance for later.
@@ -88,28 +109,39 @@ class TCPProducingClient(MotionProcessProtocol):
         """
         Errback from TCP4 endpoint, called if we get a connection error.
         """
-        log.error('Error getting outbound TCP connection: %s' % str(failure))
-        del self.p
+        log.debug('Error getting outbound TCP connection: %s' % str(failure))
 
     def open_outbound(self):
         log.debug('Connected, opening outbound connection')
         factory = protocol.Factory()
         factory.protocol = Sender
-        point = TCP4ClientEndpoint(reactor, DEST_ADDR, DEST_PORT)
+        point = TCP4ClientEndpoint(reactor, self.hostname, self.portnum)
         d = point.connect(factory)
         d.addCallback(self.gotProtocol)
         d.addErrback(self.noProtocol)
 
 
-def spawnProcess(reactor, processProtocol):
+def spawnProcess(reactor, processProtocol, interval):
+    """
+    Nifty Twisted trick - spawn a process, and hook its stdout into a Protocol.
+    """
     return reactor.spawnProcess(processProtocol, 
                                 'motion', 
-                                ['-f', str(UPDATE_DELAY_MSEC)]
+                                ['-f', str(interval)]
                                 )
 
 
 if __name__ == '__main__':
-    log.basicConfig(level=log.DEBUG, format='%(asctime)s %(levelname)s [%(funcName)s] %(message)s')
-    mp = MotionProcessProtocol()
-    spawnProcess(reactor, mp)
+    log.basicConfig(level=log.INFO, format='%(asctime)s %(levelname)s [%(funcName)s] %(message)s')
+
+    o = MOptions()
+    try:
+        o.parseOptions()
+    except usage.UsageError, etaxt:
+        log.error('%s %s' % (sys.argv[0], errortext))
+        log.info('Try %s --help for usage details' % sys.argv[0])
+        raise SystemExit, 1
+
+    mp = TCPProducingClient(o.opts['host'], o.opts['port'])
+    spawnProcess(reactor, mp, o.opts['interval'])
     reactor.run()
