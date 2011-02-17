@@ -7,9 +7,14 @@ Note: I'm still not sure on the final form of the example functions, but
 the content is progressing.
 The goal is to make the tests easy to run, and maybe interact with while
 minimizing fanciness and hackyness.
+
+demonstrate deploying app with tac file
 """
+import os
+from string import Template
+
 from twisted.internet import reactor
-from twisted.web import resource
+from twisted.web import resource, static
 from twisted.web import server
 
 import motion
@@ -17,6 +22,7 @@ import arduino
 
 WEB_PORT = 8000
 
+staticpath = os.path.join(os.path.abspath('web'), 'static')
 #################################################################
 ## Extra Demonstration Code
 ## These supplement motion and arduino
@@ -29,16 +35,24 @@ class DeviceControlPage(resource.Resource):
 
     def __init__(self, device):
         resource.Resource.__init__(self)
+        self.staticroot = staticpath
         self.device = device
         self.putChild('demo', self)
+        self.putChild('static', static.File(self.staticroot))
 
     def render_GET(self, request):
         """
         """
         d = self.device.get_data()
-        d.addCallback(self._finish_response, request)
+        d.addCallback(self._get_index, request)
         d.addErrback(self._err_get)
         return server.NOT_DONE_YET
+
+    def _get_index(self, (temp, humidity,), request):
+        tmpl = os.path.join(self.staticroot, "index.html")
+        html = Template(open(tmpl).read()).substitute({'dcolor':self.device.color, 'temp':str(temp), 'hum':str(humidity)})
+        request.write(html)
+        request.finish()
 
     def _finish_response(self, (temp, humidity,), request):
         request.write("""

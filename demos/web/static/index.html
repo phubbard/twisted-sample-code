@@ -1,0 +1,33 @@
+<html>
+<head>
+  <title>Arduino Device Control Demonstration</title>
+<link rel="stylesheet" href="static/css/blueprint/screen.css" type="text/css" media="screen, projection">
+<!--[if IE]><link rel="stylesheet" href="static/css/blueprint/ie.css" type="text/css" media="screen, projection"><![endif]-->
+<link rel="stylesheet" href="static/css/ui.css" type="text/css" media="screen, projection">
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.3.2/jquery.min.js"></script>
+<script type="text/javascript" src="static/js/ui.js"></script>
+</head>
+<body>
+ <div class="container">
+  <div class="span-15">
+    <h1 id="header">Weather Station</h1>
+  </div>
+
+  <div id="configuration" class="span-10">
+    <p class="title">Light Control</p>
+      <form method='post'>
+        <input type='text' name='color' value='$dcolor'>
+        <input type='submit' value='Set Color'>
+      </form>
+    <p class='title'>Current Observations</p>
+      <ul>
+        <li>Temperature: $temp C</li>
+        <li>Humidity: $hum </li>
+      </ul>
+  </div>
+
+
+   <div id="footer" class="span-10"></div>
+ </div>
+</body>
+</html>
