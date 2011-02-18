@@ -125,7 +125,7 @@ def demo1():
 
     The Deferred returned by get_data will callback with a two-tuple of
     sensor data (temperature, humidity,)
-    
+
     Instances of arduino.Device actually communicate to the physical
     device, so can only run in an environment where connectivity to the
     device is available.
@@ -180,17 +180,17 @@ def demo3():
     Laptop Motion Sensor
 
     Demonstrates how an external program can be invoked and monitored by
-    Twisted. Motion is a program that writes samples of the accelerometer 
-    inside the MacBook to stdout. 
+    Twisted. Motion is a program that writes samples of the accelerometer
+    inside the MacBook to stdout.
     Twisted treats the stdin/out of a process just like any other
     transport.
-    The twisted Process Protocol receives the write events on the outReceived 
+    The twisted Process Protocol receives the write events on the outReceived
     method
 
     The MotionProcessProtocol will log the data samples when they occur.
     """
     motionProcess = motion.MotionProcessProtocol()
-    motion.spawnProcess(reactor, motionProcess)
+    motion.spawnProcess(reactor, motionProcess, 250)
 
 def demo4():
     """
