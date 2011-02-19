@@ -28,19 +28,8 @@ class MOptions(usage.Options):
     ['interval', 'i', 100, 'Polling interval, milliseconds'],
     ]
 
-class GraphiteSender(DatagramProtocol):
-    def startProtocol(self):
-        log.debug('Connecting udp')
-        #self.transport.connect('127.0.0.1', 2003)
-        log.debug('udp done')
-
-    def datagramReceived(self, datagram, host):
-        log.warn('got unexpected packet')
-
-    def connectionRefused(self):
-        log.error('connection refused!')
-
-    def sendDatagram(self, msg):
+class GraphiteSender(protocol.Protocol):
+    def sendMessage(self, msg):
         # Assuming that msg is an 3-array of floats, x-z
         now = int(time.time())
         lines = []
@@ -49,8 +38,29 @@ class GraphiteSender(DatagramProtocol):
         lines.append('paul.accel.z %s %d' % (msg[2], now))
         message = '\n'.join(lines) + '\n' #all lines must end in a newline
 
-        log.debug('sending udp packet "%s"' % message)
-        self.transport.write(message, ('127.0.0.1', 2003))
+        log.debug('sending packet')
+        self.transport.write(message)
+
+class StatsdSender(DatagramProtocol):
+    """
+    @see http://twistedmatrix.com/documents/current/core/examples/echoclient_udp.py
+    This sends the data out over UDP to the Etsy node.js based stats daemon.
+    Slightly different wire protocol.
+    """
+    def startProtocol(self):
+        # @bug Add init, save address, connect to that
+        log.debug('Connecting udp')
+        self.transport.connect('127.0.0.1', 8125)
+        log.debug('udp done')
+
+    def connectionRefused(self):
+        log.error('connection refused!')
+
+    def sendDatagram(self, msg):
+        # Assuming that msg is an 3-array of floats, x-z
+        self.transport.write('paul.accel.x:%s|c' % msg[0])
+        self.transport.write('paul.accel.y:%s|c' % msg[1])
+        self.transport.write('paul.accel.z:%s|c' % msg[2])
 
 class Sender(protocol.Protocol):
     """
@@ -92,17 +102,16 @@ class MotionProcessProtocol(protocol.ProcessProtocol):
         log.info('got "%s"' % str(motion))
 
 class UDPProducingClient(MotionProcessProtocol):
-    """
-    Send data to Graphite instead of labview.
-    """
+    #def __init__(self, hostname, portnum):
+    #    self.hostname = hostname
+    #    self.portnum = int(portnum)
+
     def connectionMade(self):
-        self.gs = GraphiteSender()
-        self.graphite_connection = reactor.listenUDP(0, self.gs)
+        self.ss = StatsdSender()
+        self.sd = reactor.listenUDP(0, self.ss)
 
     def motionReceived(self, motion):
-        log.debug('got "%s"' % str(motion))
-
-        self.gs.sendDatagram(motion)
+        self.ss.sendDatagram(motion)
 
 class TCPProducingClient(MotionProcessProtocol):
     """
@@ -116,7 +125,7 @@ class TCPProducingClient(MotionProcessProtocol):
 
     def __init__(self, hostname, portnum):
         self.hostname = hostname
-        self.portnum = portnum
+        self.portnum = int(portnum)
 
     def connectionMade(self):
         """
@@ -151,7 +160,7 @@ class TCPProducingClient(MotionProcessProtocol):
     def open_outbound(self):
         log.debug('Connected, opening outbound connection')
         factory = protocol.Factory()
-        factory.protocol = Sender
+        factory.protocol = GraphiteSender
         point = TCP4ClientEndpoint(reactor, self.hostname, self.portnum)
         d = point.connect(factory)
         d.addCallback(self.gotProtocol)
